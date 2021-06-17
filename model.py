@@ -144,8 +144,6 @@ from keras.layers import  add
 from keras.layers import concatenate,BatchNormalization
 from keras.layers import Lambda
 
-      
-
 def Codecontext(input,n=4,filters2=2):
         
         input_shape1 = input.get_shape().as_list()
@@ -303,6 +301,34 @@ def bottleneck_Block(input, out_filters, strides=(1, 1), dilation=(1, 1), with_c
     x = Activation('relu')(x)
     return x
 
+def Branch_Block(input,filters,out_filters, strides=(1, 1), dilation=(1, 1), with_conv_shortcut=False):
+
+
+    x = Conv2D(filters, 3, strides=strides, padding='same',
+               dilation_rate=dilation, use_bias=False, kernel_initializer='he_normal')(x)
+    x = BatchNormalization(axis=3)(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters, 3, strides=strides, padding='same',
+               dilation_rate=dilation, use_bias=False, kernel_initializer='he_normal')(x)
+    x = BatchNormalization(axis=3)(x)
+    x = Activation('relu')(x)
+
+
+    x = Conv2D(out_filters, 1, use_bias=False, kernel_initializer='he_normal')(x)
+    x = BatchNormalization(axis=3)(x)
+
+    if with_conv_shortcut:
+        residual = Conv2D(out_filters, 1, strides=strides, use_bias=False, kernel_initializer='he_normal')(input)
+        residual = BatchNormalization(axis=3)(residual)
+        x = add([x, residual])
+    else:
+        x = add([x, input])
+
+    x = Activation('relu')(x)
+    x = MaxPooling2D( pool_size=(3, 3),strides=2,padding='same',data_format=None)(x)
+
+    return x
 
 def code_resnet101(height, width, channel, classes,n,C):
     input = Input(shape=(height, width, channel))
