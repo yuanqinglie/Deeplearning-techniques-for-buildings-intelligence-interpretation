@@ -326,7 +326,7 @@ def Branch_Block(input,filters,out_filters, strides=(1, 1), dilation=(1, 1), wit
         x = add([x, input])
 
     x = Activation('relu')(x)
-    x = MaxPooling2D( pool_size=(3, 3),strides=2,padding='same',data_format=None)(x)
+    x = MaxPooling2D( pool_size=(3, 3),strides=2,padding='same',data_format='channels_last')(x)
 
     return x
 
@@ -381,7 +381,7 @@ def code_resnet101(height, width, channel, classes,n,C):
     conv5_3 = bottleneck_Block(conv5_2, 2048)
    
 
-    # Fusion
+    # ------------------------Pyramid feature Fusion-----------------------------------------
     # Fusion  1/32
     conv6_1 = Conv2D(512, 1, use_bias=False, kernel_initializer='he_normal')(conv5_3)
     conv6_2_1 = Conv2D(512, 1, use_bias=False, kernel_initializer='he_normal')(conv4_23)
@@ -407,9 +407,9 @@ def code_resnet101(height, width, channel, classes,n,C):
     conv7_3 = Lambda(lambda xx:tf.image.resize_images(xx,size_before3[1:3]))(conv3_4)
     merge2 = concatenate([conv7_1, conv7_2, conv7_3,conv2_3], axis=3)
     print(merge2)
-
+    # ------------------------Pyramid feature Fusion-----------------------------------------
     
-    # ATTENTION
+    # Decoder
     codeword =  Codeword([merge2,merge1],n,C) # n:number of codeword;C:channels redutction
 
     # Last Conv Layer and Prediction
@@ -573,7 +573,7 @@ def pool_block(feats, pool_factor, out_channel,flag=1):
     x = MaxPooling2D(pool_size , data_format='channels_last' , strides=strides, padding='same')(feats)
   return x
 
-def Pyramid_context(feats, pool_factor,out_channel,backbone='resnet50',aux_branch=True,flag=1,n=4,filters2=2):
+def Pyramid_context(pool_factor,out_channel,backbone='resnet50',aux_branch=True,flag=1,n=4,filters2=2):
    if backbone=="resnet101":
      featue= get_resnet101_encoder(inputs_size,downsample_factor=downsample_factor)
      img_input= feaure[0]
@@ -629,7 +629,7 @@ def SAM( input,filters1,k,filters2 ):
    c1 = Conv2D(filters2, 1, use_bias=False, kernel_initializer='he_normal')(f4)
    vec_bT = Lambda(lambda xx: tf.transpose(K.reshape(xx, (-1, h * w, filters1)),(0, 2, 1)))(b)
    vec_c = Lambda(lambda xx: K.reshape(xx, (-1, h * w, filters2)),(0, 2, 1))(c1)
-   bTc=Lambda(lambda xx:K.batch_dot(xx[0],xx[1]))([vec_bT, vec_c])
+   bTc=Lambda(lambda xx:K.batch_dot(xx[0],xx[1]))([vec_c,vec_bT])
    maxpool_spatial = Lambda(lambda x: K.max(x, axis=0, keepdims=True))(bTc)
    avgpool_spatial = Lambda(lambda x: K.mean(x, axis=0, keepdims=True))(bTc)
    max_avg_pool_spatial = Concatenate(axis=2)([maxpool_spatial, avgpool_spatial])
@@ -640,9 +640,9 @@ def SAM( input,filters1,k,filters2 ):
 
    return out
 
-def Decocontext(feats, pool_factor,out_channel,backbone='resnet50',aux_branch=True,flag=1,n=4,filters2=2,C=2):
+def Decocontext(inputs, pool_factor,out_channel,backbone='resnet50',aux_branch=True,flag=1,n=4,filters2=2,C=2):
         input=inputs[0]
-        # n: number of codeword
+        # n: the number of global contextual code
         
         input1=inputs[1]
         input_shape = input.get_shape().as_list()
@@ -651,11 +651,11 @@ def Decocontext(feats, pool_factor,out_channel,backbone='resnet50',aux_branch=Tr
         filters1=int(filters // n)
         filters2=int(filters2_1 // C)
         filters3=int(filters2_1 // n)
-        print("Number of codeword:",filters3)
+        print("Number of contextual code:",filters3)
         print("Number of channels reduction:",filters2)
         
         #codebook,c1 = self.Codebook(input1)
-        codecontext,c1,feaure = Pyramid_context(feats, pool_factor,out_channel,backbone='resnet50',aux_branch=True,flag=1,n=4,filters2=2)
+        codecontext,c1,feaure = Pyramid_context( pool_factor,out_channel,backbone,aux_branch,flag,n=4,filters2=2)
        
 
         a = Conv2D(filters2, 1, use_bias=False, kernel_initializer='he_normal')(input)
