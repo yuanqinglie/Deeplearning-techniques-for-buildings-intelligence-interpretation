@@ -1,4 +1,4 @@
-This is a deep learning module using convolution neural network to extract buildings. The code contains a framework and some novel modules for using backbone networks such as resnet50 / 101 and mobilenet.
+This is a deep learning module using convolution neural network to extract and detect buildings. The code contains a framework and some novel modules for using backbone networks such as resnet50 / 101 and mobilenet.
 
 We will continue to improve the update code, including instance segmentation, object detection algorithm and novel modules.
 
